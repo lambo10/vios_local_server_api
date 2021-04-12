@@ -435,8 +435,8 @@ def login_professional_math():
                 elif check_if_session_exsit(cid,request.remote_addr) == 'G':
                         result = outx["job"]
                 else:
-                        # 20013 - error: already loged in
-                        result = '20013'
+                        # already loged in
+                        result = outx["job"]
                 return result
         else:
                 return "10001"

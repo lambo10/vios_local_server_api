@@ -1,4 +1,5 @@
 module.exports = {
     institution_name:"Mount Ara-phat Hospital",
-    institution_Abrivation:"UNN-MED"
+    institution_Abrivation:"UNN-MED",
+    localserver_ip:"localhost"
 }

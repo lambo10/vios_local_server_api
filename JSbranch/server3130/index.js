@@ -8,6 +8,8 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const instiConfig = require('../../config/instiConfig.js');
 const multer = require('multer');
+const { localserver_ip } = require("../../config/instiConfig.js");
+const { query } = require("express");
 
 mongoose.Promise = global.Promise;
 
@@ -16,6 +18,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}))
 app.use(express.json());
 app.use(express.urlencoded());
+app.use(express.static('public'))
 const full_name_of_institution = instiConfig.institution_name;
 const name_of_institution = instiConfig.institution_Abrivation;
 const global_static_var = {
@@ -24,7 +27,7 @@ const global_static_var = {
 
 var storage = multer.diskStorage({
     destination: function (req, file, cb) {
-      cb(null, 'HospitalServe/uploadFormImg')
+      cb(null, '../server4417/formFiles')
     },
     filename: function (req, file, cb) {
       cb(null, Date.now()+'_'+file.originalname)
@@ -293,7 +296,7 @@ mongoose.connect(dbConfig.url,function (err,db){
 
                                     var today = new Date();
                                     var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
-                                    var insertionDoc = { name: user_name, usrID: usrID, age: result4.age, gender: result4.gender, professional_name: prof_name, professional_ID: professional_ID,professional_job: result4.job, assigned_by_name:assigned_by_name, assigned_by_ID:JSON.parse(result2.data).$oid, date: dateString, time: time};
+                                    var insertionDoc = { name: user_name, usrID: usrID, age: result4.age, gender: result4.gender, professional_name: prof_name, professional_ID: professional_ID,professional_job: result4.job, assigned_by_name:assigned_by_name, assigned_by_ID:result2.data.toString(), date: dateString, time: time};
                                     db.collection("assign").insertOne(insertionDoc, function(err, res) {
                                         if (err) throw err;
                                         response.send("11111");
@@ -513,7 +516,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         if(check_clerance_level(cleranceLevel,result2.job)){
                            dispensed_drugs = JSON.parse(dispense_string);
                            dispensed_drugs.forEach(e => {
-                            drug_query = {_id: mongoose.Types.ObjectId(e.id)}
+                            const drug_query = {_id: mongoose.Types.ObjectId(e.id)}
                             db.collection("drugs").findOne(drug_query, {projection:{_id:1,name:1,price:1,quantity:1}},function(opErr,opRes){
                                 if(opRes == null){
                                 }else{
@@ -522,7 +525,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                     new_drugQuantity =  parseInt(opRes.quantity) - parseInt(e.quantity);
                                     if(new_drugQuantity < 0){
                                     }else{
-                                        queryPatient = {_id: mongoose.Types.ObjectId(usrID)};
+                                        const queryPatient = {_id: mongoose.Types.ObjectId(usrID)};
                                         db.collection("patient_profile").findOne(queryPatient,{projection:{_id:0,first_name:1,last_name:1,phone_no:1,age:1,home_address:1,gender:1,patientno:1}}, function(opErr3,opRes3){
                                             if (opErr3) throw response.send("1110012");
                                             if(opRes3 == null){
@@ -530,7 +533,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                             }else{
                                         var currentDate = new Date();
                                         var date = currentDate;
-                                        dispens_doc = {
+                                        var dispens_doc = {
                                             DrugID: opRes._id.toString(),
                                             DrugName: opRes.name,
                                             Price_per_drug: opRes.price,
@@ -541,17 +544,17 @@ mongoose.connect(dbConfig.url,function (err,db){
                                         }
                                         db.collection("dispensing_log").insertOne(dispens_doc,function(opErr2,opRes2){
                                             if (opErr2) throw opErr2;
-                                        upQuery = {_id: mongoose.Types.ObjectId(opRes._id)}
-                                        newUPvalue = {$set:{quantity:(parseInt(opRes.quantity) - parseInt(staticVars.numberOfDrugs_t_dispe))}}
+                                        const upQuery = {_id: mongoose.Types.ObjectId(opRes._id)}
+                                        var newUPvalue = {$set:{quantity:(parseInt(opRes.quantity) - parseInt(staticVars.numberOfDrugs_t_dispe))}}
                                         db.collection("drugs").updateOne(upQuery,newUPvalue,function(upErr2,upRes2){
                                             staticVars.dispenseCollection.push(dispens_doc);
                                             //
                                             
                                             if(staticVars.dispenseCollection.length >= dispensed_drugs.length){
-                                                insurQuery = {usrID: usrID};
+                                                const insurQuery = {usrID: usrID};
                                             db.collection("user_insurance").findOne(insurQuery,{projection:{_id:0,name:1,address:1,NHIS_NO:1,HMO_NO:1,tel_fax:1}}, function(opErr3s,opRes3s){
                                                 if (opErr3s) throw response.send("1110012");
-                                                usr_dispens_doc = {};
+                                                var usr_dispens_doc = {};
                                                 if(opRes3s == null){
                                                     usr_dispens_doc = {
                                                         usrID:usrID,
@@ -569,7 +572,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                                         drugs: staticVars.dispenseCollection
                                                     };
                                                 }else{
-                                                    usr_dispens_doc = {
+                                                    var usr_dispens_doc = {
                                                         usrID:usrID,
                                                         name:opRes3.first_name+" "+opRes3.last_name,
                                                         phone_no: opRes3.phone_no,
@@ -593,7 +596,7 @@ mongoose.connect(dbConfig.url,function (err,db){
          
                                                      const insertion_doc = {
                                                          usrID:usrID,
-                                                         professional_ID:JSON.parse(result2.data).$oid,
+                                                         professional_ID:result2.data.toString(),
                                                          inserted_txt:split_inserted_txt,
                                                          user_name:result3.first_name+" "+result3.last_name,
                                                          type:"Dispanse"
@@ -631,6 +634,60 @@ mongoose.connect(dbConfig.url,function (err,db){
         }catch{
             response.send('1110016');
         }
+        
+    });
+
+    app.get('/check_patient_exsistence', async (request, response) => {
+        try{
+        const email = request.query['email'];
+        const phone_no = request.query['phone_no'];
+
+        const cleranceLevel = ["Record_manager"];
+        
+        var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+        if(usr_remote_ip == '1'){
+            usr_remote_ip = "127.0.0.1";
+        }
+        // check if node is permitted
+        const queryPN = {nodeIP:usr_remote_ip};
+        node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+            if (err) throw response.send("1110011");
+            if(result == null){
+                response.send("1110011");
+            }else{
+                //check session loged in
+                const querySL = {id:usr_remote_ip};
+                loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,data:1}}, function(err2,result2){
+                    if (err2) throw response.send("1110012");
+                    if(result2 == null){
+                        response.send("1110012");
+                    }else{
+                        if(check_clerance_level(cleranceLevel,result2.job)){
+
+                            opQuerry3 = {$or:[{email:email},{phone_no:phone_no}]};
+                            db.collection("patient_profile").findOne(opQuerry3,{projection:{_id:1}}, function(err4,result4){
+                                if (err4) throw response.send("1110012");
+                                if(result4 == null){
+                                    response.send("100245");
+                            }else{
+                                response.send(result4._id);
+                            }  
+                                
+
+                            });
+
+                        }else{
+                            response.send('1110013');
+                        }
+                    }
+
+                });
+            }
+        });
+        }catch(e){
+            console.log(e);
+            response.send('1110016');
+        }  
         
     });
 
@@ -721,9 +778,9 @@ mongoose.connect(dbConfig.url,function (err,db){
                                             
                                         db.collection("patient_profile").insertOne(em_prof_row, function(err, res) {
                                             if (err) throw err;
-                                        const emp_search_json_consNB = {'character':first_name+' '+last_name+' '+middle_name,'id':res.insertedId,'patientno':staticVars.wkr_patient_no,'icon':'http://localhost:4417/patient/'+res.insertedId+'/profile/usr_profile.jpg'}
-                                        const emp_search_json_consIDB = {'character':staticVars.wkr_patient_no,'id':res.insertedId,'patientno':first_name+' '+last_name+' '+middle_name,'icon':'http://localhost:4417/patient/'+res.insertedId+'/profile/usr_profile.jpg'}
-                                            write_to_patient_sugestions(emp_search_json_consNB,emp_search_json_consIDB);
+                                        const emp_search_json_consNB = {'character':first_name+' '+last_name+' '+middle_name,'id':res.insertedId,'patientno':staticVars.wkr_patient_no,'icon':'http://'+instiConfig.institution_localserver_ip+':4417/patient?path='+res.insertedId+'/profile/usr_profile.jpg'}
+                                        const emp_search_json_consIDB = {'character':staticVars.wkr_patient_no,'id':res.insertedId,'patientno':first_name+' '+last_name+' '+middle_name,'icon':'http://'+instiConfig.institution_localserver_ip+':4417/patient?path='+res.insertedId+'/profile/usr_profile.jpg'}
+                                            // write_to_patient_sugestions(emp_search_json_consNB,emp_search_json_consIDB);
                                             response.send(res);
                                         });
     
@@ -781,7 +838,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {
+                            const query = {
                                 Date:{
                                     $gte: new Date(new Date(range1).setHours(00, 00, 00)),
                                     $lt: new Date(new Date(range2).setHours(23, 59, 59))
@@ -854,7 +911,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {
+                            const query = {
                                 Date:{
                                     $gte: new Date(new Date(range1).setHours(00, 00, 00)),
                                     $lt: new Date(new Date(range2).setHours(23, 59, 59))
@@ -882,6 +939,63 @@ mongoose.connect(dbConfig.url,function (err,db){
         }  
         
     });
+    // app.get('/get_drug', async (request, response) => {
+    //     try{
+        
+    //     const category = request.query["category"];
+    //     var price_sum = 0;
+    //     var tot_no_of_drugs = 0;
+    //     var tot_quantity = 0;
+
+    //     const cleranceLevel = ["Pharmacist"];
+    //     staticVars={
+    //         collectionA: []
+    //     };
+    //     var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    //     if(usr_remote_ip == '1'){
+    //         usr_remote_ip = "127.0.0.1";
+    //     }
+    //     // check if node is permitted
+    //     const queryPN = {nodeIP:usr_remote_ip};
+    //     node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+    //         if (err) throw response.send("1110011");
+    //         if(result == null){
+    //             response.send("1110011");
+    //         }else{
+    //             //check session loged in
+    //             const querySL = {id:usr_remote_ip};
+    //             loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,first_name:1,last_name:1}}, function(err2,result2){
+    //                 if (err2) throw response.send("1110012");
+    //                 if(result2 == null){
+    //                     response.send("1110012");
+    //                 }else{
+    //                     if(check_clerance_level(cleranceLevel,result2.job)){
+    //                         const query = {
+    //                             category:category
+    //                         };
+    //                         db.collection("expired_drugs").find(query,{projection:{_id:1,name:1,type:1,price:1,quantity:1,batch_price:1,brand:1,strength:1,expDate:1,category:1,batch_number:1}}).forEach(e => {
+    //                             e.cost = e.price * e.quantity;
+    //                             staticVars.collectionA.push(e);
+    //                         }).then(e => {
+    //                             response.send(staticVars.collectionA);
+    //                         }).catch(e => {
+    //                             response.send("1100101");
+    //                         });
+
+    //                     }else{
+    //                         response.send('1110013');
+    //                     }
+    //                 }
+
+    //             });
+    //         }
+    //     });
+    //     }catch{
+    //         response.send('1110016');
+    //     }  
+        
+    // });
+
     app.get('/get_drug_with_id', async (request, response) => {
         try{
         const DrugID = request.query["DrugID"];
@@ -905,7 +1019,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DrugID)};
+                            const query = {_id: mongoose.Types.ObjectId(DrugID)};
                             db.collection("drugs").findOne(query,{projection:{_id:0,name:1,type:1,price:1,quantity:1,batch_price:1,brand:1,drug_shortage_point:1,strength:1,expDate:1,category:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -1002,7 +1116,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {
+                            const query = {
                                 expDate:{
                                     $gte: new Date(new Date(range1).setHours(00, 00, 00)),
                                     $lt: new Date(new Date(range2).setHours(23, 59, 59))
@@ -1057,7 +1171,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
         
-                            opQuerry1 = {professional_ID:JSON.parse(result2.data).$oid};
+                            opQuerry1 = {professional_ID:result2.data};
                             db.collection("assign").find(opQuerry1,{projection:{_id:1,name:1,usrID:1,age:1,gender:1,assigned:1}}).forEach(e => {
                                 staticVars.collectionA.push(e);
                             }).then(e => {
@@ -1207,7 +1321,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            var query_main = {professional_ID:JSON.parse(result2.data).$oid};
+                            var query_main = {professional_ID:result2.data.toString()};
                                     db.collection("assign").deleteMany(query_main, function(err, res) {
                                         if (err) throw response.send("110098");
                                         response.send("11111");
@@ -1262,8 +1376,8 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-        
-                            opQuerry1 = {professional_ID:JSON.parse(result2.data).$oid};
+                            
+                            opQuerry1 = {professional_ID:result2.data};
                             db.collection("attended_patients").find(opQuerry1,{projection:{_id:1,usrID:1,inserted_txt:1,user_name:1,type:1}}).forEach(e => {
                                 staticVars.collectionA.push(e);
                             }).then(e => {
@@ -1413,13 +1527,13 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
+                            const upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
                             loged_in_session = db.collection("drugs").findOne(upQuery,{projection:{name:1,type:1,category:1,quantity:1}}, function(operr1,opresult1){
                                 if (operr1) throw response.send("1110012");
                                 if(opresult1 == null){
                                     response.send("1110012");
                                 }else{
-                                    newUPvalue = {$set:{
+                                    var newUPvalue = {$set:{
                                         price:price,
                                         quantity:(parseInt(quantity) + parseInt(opresult1.quantity)),
                                         drug_shortage_point:drug_shortage_point,
@@ -1434,7 +1548,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                     staticVars.count++
                                 }).then(e => {
                                     
-                                    insertion_doc = {
+                                    var insertion_doc = {
                                         name:opresult1.name,
                                         type:opresult1.type,
                                         category:opresult1.category,
@@ -1516,13 +1630,13 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
+                            const upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
                             loged_in_session = db.collection("drugs").findOne(upQuery,{projection:{name:1,type:1,category:1,quantity:1}}, function(operr1,opresult1){
                                 if (operr1) throw response.send("1110012");
                                 if(opresult1 == null){
                                     response.send("1110012");
                                 }else{
-                                    newUPvalue = {$set:{
+                                    var newUPvalue = {$set:{
                                         name:name,
                                         type:type,
                                         category:category,
@@ -1583,21 +1697,21 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
+                            const upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
                             loged_in_session = db.collection("drugs").findOne(upQuery,{projection:{name:1,type:1,category:1,quantity:1,price:1,brand:1,strength:1,expDate:1}}, function(operr1,opresult1){
                                 if (operr1) throw response.send("1110012");
                                 if(opresult1 == null){
                                     response.send("1110012");
                                 }else{
                                     subtracted_quantity = (parseInt(opresult1.quantity) - parseInt(no_of_losses));
-                                    newUPvalue = {$set:{
+                                    var newUPvalue = {$set:{
                                         quantity:subtracted_quantity
                                     }}
                                     if(subtracted_quantity < 0){
                                         response.send("11008");
                                     }else{
                                         db.collection("drugs").updateOne(upQuery,newUPvalue,function(upErr2,upRes2){
-                                            insertion_doc = {
+                                            var insertion_doc = {
                                                 name:opresult1.name,
                                                 type:opresult1.type,
                                                 category:opresult1.category,
@@ -1662,7 +1776,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {_id: mongoose.Types.ObjectId(batchID)}
+                            const upQuery = {_id: mongoose.Types.ObjectId(batchID)}
                             db.collection("expired_drugs").findOne(upQuery,{projection:{quantity:1,DrugID:1}}, function(operr1,opresult1){
                                 if (operr1) throw response.send("1110012");
                                 if(opresult1 == null){
@@ -1671,7 +1785,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                     const upQuery2 = {_id: mongoose.Types.ObjectId(opresult1.DrugID)}
                                     db.collection("drugs").findOne(upQuery2,{projection:{quantity:1}}, function(operrs2,opresults2){
                                     subtracted_quantity = (parseInt(opresults2.quantity) - parseInt(opresult1.quantity));
-                                    newUPvalue = {$set:{
+                                    var newUPvalue = {$set:{
                                         quantity:subtracted_quantity
                                     }}
                                     if(subtracted_quantity < 0){
@@ -1730,7 +1844,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
+                            const upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
                             db.collection("drugs").findOne(upQuery,{projection:{_id:1,name:1,type:1,category:1,quantity:1,price:1,brand:1,strength:1}}, function(operr1,opresult1){
                                 if (operr1) throw response.send("1110012");
                                 if(opresult1 == null){
@@ -1785,7 +1899,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
+                            const upQuery = {_id: mongoose.Types.ObjectId(DrugID)}
                             db.collection("poison_log").deleteOne(upQuery,function(operr1,opresult1){
                                 if (operr1) throw response.send("1110012");
                                 response.send("11111");
@@ -1878,7 +1992,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            upQuery = {DrugID:DrugID}
+                            const upQuery = {DrugID:DrugID}
                                 db.collection("drugs_batch").find(upQuery).forEach(e => {
                                     staticVars.collectionA.push(e);
                                 }).then(e => {
@@ -1926,7 +2040,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {
+                            const query = {
                                 date:{
                                     $gte: new Date(new Date(range1).setHours(00, 00, 00)),
                                     $lt: new Date(new Date(range2).setHours(23, 59, 59))
@@ -1985,7 +2099,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             if(clerance === result2.job){
-                                newvalue = {
+                                var newvalue = {
                                     clerance:clerance,
                                     category:category,
                                     rawForm:rawForm,
@@ -2179,7 +2293,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -2246,7 +2360,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                            if(formID === "11111"){
-                                newvalue = {
+                                var newvalue = {
                                     formID:formID,
                                     data:data,
                                     usrID:usrID,
@@ -2259,9 +2373,10 @@ mongoose.connect(dbConfig.url,function (err,db){
                                     opQuerry1 = {_id: mongoose.Types.ObjectId(usrID)};
                                     db.collection("patient_profile").findOne(opQuerry1,{projection:{_id:0,first_name:1,last_name:1}}, function(err3,result3){
 
+                                        
                                         const insertion_doc = {
                                             usrID:usrID,
-                                            professional_ID:JSON.parse(result2.data).$oid,
+                                            professional_ID:result2.data.toString(),
                                             inserted_txt:split_inserted_txt,
                                             user_name:result3.first_name+" "+result3.last_name,
                                             type:category
@@ -2275,11 +2390,11 @@ mongoose.connect(dbConfig.url,function (err,db){
                                     response.send("11111");
                                 });
                            }else{
-                            queryOPR = {_id: mongoose.Types.ObjectId(formID)};
+                            const queryOPR = {_id: mongoose.Types.ObjectId(formID)};
                                 db.collection("forms").findOne(queryOPR,{projection:{clerance:1,formName:1}},function(err5,result5){
                                     if (err5) throw response.send("1110012");
                                     if(result5.clerance === result2.job){
-                                        newvalue = {
+                                        var newvalue = {
                                             formID:formID,
                                             data:data,
                                             usrID:usrID,
@@ -2294,7 +2409,7 @@ mongoose.connect(dbConfig.url,function (err,db){
     
                                                 const insertion_doc = {
                                                     usrID:usrID,
-                                                    professional_ID:JSON.parse(result2.data).$oid,
+                                                    professional_ID:result2.data.toString(),
                                                     inserted_txt:split_inserted_txt,
                                                     user_name:result3.first_name+" "+result3.last_name,
                                                     type:result5.formName
@@ -2361,7 +2476,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             if(formID === "11111"){
                                 const date = new Date();
-                                        newvalue = {
+                                        var newvalue = {
                                             formID:formID,
                                             disp_data:disp_data,
                                             usrID:usrID,
@@ -2373,12 +2488,12 @@ mongoose.connect(dbConfig.url,function (err,db){
                                             response.send("11111");
                                         });
                             }else{
-                                queryOPR = {_id: mongoose.Types.ObjectId(formID)};
+                                const queryOPR = {_id: mongoose.Types.ObjectId(formID)};
                                 db.collection("forms").findOne(queryOPR,{clerance:1},function(err5,result5){
                                     if (err5) throw response.send("1110012");
                                     if(result5.clerance === result2.job){
                                         const date = new Date();
-                                        newvalue = {
+                                        var newvalue = {
                                             formID:formID,
                                             disp_data:disp_data,
                                             usrID:usrID,
@@ -2437,7 +2552,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -2490,7 +2605,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -2556,7 +2671,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
                             
@@ -2613,7 +2728,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection("Radiograph").findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -2665,7 +2780,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -2718,7 +2833,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
                             
@@ -2776,7 +2891,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection("Lab").findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -2829,7 +2944,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -2882,7 +2997,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
 
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
                             
@@ -2939,7 +3054,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection("Prescription").findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -3036,7 +3151,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             const date = new Date();
-                            newvalue = {
+                            var newvalue = {
                                 formID:formID,
                                 disp_data:disp_data,
                                 usrID:usrID,
@@ -3092,7 +3207,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             const date = new Date();
-                            newvalue = {
+                            var newvalue = {
                                 formID:formID,
                                 disp_data:disp_data,
                                 usrID:usrID,
@@ -3147,7 +3262,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -3202,7 +3317,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
                             
@@ -3259,7 +3374,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection("Dispense").findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -3311,7 +3426,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -3364,7 +3479,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
 
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
                             
@@ -3421,7 +3536,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection("Note").findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -3473,7 +3588,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
     
@@ -3526,7 +3641,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
 
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
                             
@@ -3583,7 +3698,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection("Encounter_Note").findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -3635,7 +3750,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
                             
-                            query = {
+                            const query = {
                                 usrID:usrID
                             };
 
@@ -3688,7 +3803,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(DocID)};
+                            const query = {_id: mongoose.Types.ObjectId(DocID)};
                             db.collection(category).findOne(query,{projection:{disp_data:1,date:1}},function (operr,opresult){
                                 if (operr) throw response.send("1110011");
                                 if(opresult == null){
@@ -3780,13 +3895,14 @@ mongoose.connect(dbConfig.url,function (err,db){
             if(result == null){
                 response.send("1110011");
             }else{
-                            
-                    query = {mIP: usr_remote_ip};
+                   
+                    const query = {mIP: usr_remote_ip};
+                    
                     db.collection("currOpratP_coll").findOne(query,{projection:{date:1}},function (operr,opresult){
                         if (operr) throw response.send("1110011");
                         if(opresult == null){
                             const date = new Date();
-                            newvalue = {
+                            var newvalue = {
                                 mIP:usr_remote_ip,
                                 usrID:usrID,
                                 job:result2.job,
@@ -3797,7 +3913,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                 response.send("11111");
                             });
                         }else{
-                            newUPvalue = {$set:{usrID:usrID}}
+                            var newUPvalue = {$set:{usrID:usrID}}
                             db.collection("currOpratP_coll").updateOne(query,newUPvalue,function(upErr2,upRes2){
                                 response.send("11111");
                             });
@@ -3828,7 +3944,7 @@ mongoose.connect(dbConfig.url,function (err,db){
             if(result == null){
                 response.send("1110011");
             }else{
-                query = {mIP: usr_remote_ip};
+                const query = {mIP: usr_remote_ip};
                     db.collection("currOpratP_coll").findOne(query,{projection:{_id:0,usrID:1}},function (operr,opresult){
                         if (operr) throw response.send("1110011");
                         if(opresult == null){
@@ -3872,7 +3988,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                         response.send("1110012");
                     }else{
                         if(check_clerance_level(cleranceLevel,result2.job)){
-                            query = {_id: mongoose.Types.ObjectId(assignID)};
+                            const query = {_id: mongoose.Types.ObjectId(assignID)};
                                     db.collection("assign").deleteOne(query, function(err, res) {
                                         if (err) throw response.send("110098");
                                         response.send("11111");
@@ -3915,12 +4031,12 @@ mongoose.connect(dbConfig.url,function (err,db){
                        response.send("1110012");
                    }else{
                        if(check_clerance_level(cleranceLevel,result2.job)){
-                           console.log(result2.data);
-                        query = {adminID:result2.data};
+                           
+                        const query = {adminID:result2.data};
                     db.collection("curr_emp_registerd").findOne(query,{projection:{date:1}},function (operr,opresult){
                         if (operr) throw response.send("1110011");
                         if(opresult == null){
-                            newvalue = {
+                            var newvalue = {
                                 empID:empID,
                                 adminID:result2.data
                             }
@@ -3929,7 +4045,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                                 response.send("11111");
                             });
                         }else{
-                            newUPvalue = {$set:{empID:empID}}
+                            var newUPvalue = {$set:{empID:empID}}
                             db.collection("curr_emp_registerd").updateOne(query,newUPvalue,function(upErr2,upRes2){
                                 response.send("11111");
                             });
@@ -3972,7 +4088,7 @@ mongoose.connect(dbConfig.url,function (err,db){
                    response.send("1110012");
                }else{
                    if(check_clerance_level(cleranceLevel,result2.job)){
-                       query = {adminID:result2.data};
+                       const query = {adminID:result2.data};
                        db.collection("curr_emp_registerd").findOne(query,{projection:{_id:0,empID:1}},function (operr,opresult){
                            if (operr) throw response.send("1110011");
                            if(opresult == null){
@@ -4021,7 +4137,7 @@ app.get('/request_drug_dispense', async (request, response) => {
                     response.send("1110012");
                 }else{
                     if(check_clerance_level(cleranceLevel,result2.job)){
-                        newvalue = {
+                        var newvalue = {
                             usrID:usrID,
                             dispense_string:dispense_string,
                             nurseID:result2.data,
@@ -4046,8 +4162,503 @@ app.get('/request_drug_dispense', async (request, response) => {
     
 });
   
+app.get('/logout_professional', async (request, response) => {
+    try{
+        
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            db.collection("session_log").deleteOne(querySL).then(function(){ 
+                response.send("11111");
+            }).catch(function(error){ 
+                response.send("1110023");
+            });
+        }
+    });   
+    }catch{
+        response.send('1110016');
+    }
+    
+});
+ 
+app.get('/get_professional_logedin_id', async (request, response) => {
+    try{
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{_id:1,data:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    response.send("1110012");
+                }else{
+                   response.send(result2.data);
+                }
+ 
+            });
+        }
+    });
+    }catch{
+        response.send('1110016');
+    }  
+    
+ });
+
+app.get('/login_professional', async (request, response) => {
+    try{
+    const email = request.query["email_c"];
+    const password = request.query["password_c"];
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,first_name:1,last_name:1,data:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    const queryHN = {email:email};
+                    db.collection("employee_profile").findOne(queryHN,{projection:{_id:1,email:1,job:1,first_name:1,last_name:1}}, function(err3,result3){
+                        if (err3) throw response.send("1110012");
+                        if(result3 == null){
+                            response.send("1110012");
+                        }else{
+                           insert_profe_session(result3._id,usr_remote_ip,result3.job,result3.first_name,result3.last_name)
+                           response.send(result3.job);
+                        }
+         
+                    });
+                }else{
+                    const queryHN = {email:email};
+                    db.collection("employee_profile").findOne(queryHN,{projection:{_id:1,email:1,job:1,first_name:1,last_name:1}}, function(err3,result3){
+                        if (err3) throw response.send("1110012");
+                        if(result3 == null){
+                            response.send("1110012");
+                        }else{
+                           update_profe_session(usr_remote_ip)
+                           response.send(result3.job);
+                        }
+         
+                    });
+                }
+ 
+            });
+  
+        }
+    });
+    }catch{
+        response.send('1110016');
+    }  
+    
+ });
+
+ app.get('/dbug_table', async (request, response) => {
+    // every professional schould have clerance for this operation
+    try{
+        staticVars={
+            collectionA: []
+        };
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            db.collection("employee_profile").find().forEach(e => {
+                staticVars.collectionA.push(e);
+            }).then(e => {
+                response.send(staticVars.collectionA);
+            }).catch(e => {
+                response.send("1100101");
+            });
+        }
+    });
+    }catch{
+        response.send('1110016');
+    }  
+    
+});
+
+app.get('/patients_suggestions', async (request, response) => {
+    try{
+    const query = {};
+    staticVars={
+        id_based: [],
+        name_based: []
+    };
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    response.send("1110012");
+                }else{
+
+                        db.collection("patient_profile").find(query,{projection:{_id:1,patientno:1,first_name:1,last_name:1,middle_name:1}}).forEach(e => {
+                            var id_based_temp = {"character":""+e.patientno,"id":""+e._id,"icon":"http://"+localserver_ip+":4417/patient?path="+e._id+"/profile/usr_profile.jpg","patientno":e.patientno};
+                            var name_based_temp = {"character":e.first_name+" "+e.last_name+" "+e.middle_name,"id":""+e._id,"icon":"http://"+localserver_ip+":4417/patient?path="+e._id+"/profile/usr_profile.jpg","patientno":e.patientno}
+                            
+                            staticVars.id_based.push(id_based_temp);
+                            staticVars.name_based.push(name_based_temp);
+                        }).then(e => {
+                            response.send(staticVars);
+                        }).catch(e => {
+                            response.send("1100101");
+                        });
+    
+                  
+                }
+
+            });
+        }
+    });   
+    }catch{
+        response.send('1110016');
+    }
+    
+});
+
+app.get('/search_drugs', async (request, response) => {
+    // every professional schould have clerance for this operation
+    try{
+    const text = request.query["text"];
+
+    const cleranceLevel = ["Pharmacist","Admin"];
+    staticVars={
+        collectionA: []
+    };
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,first_name:1,last_name:1,data:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    response.send("1110012");
+                }else{
+                    if(check_clerance_level(cleranceLevel,result2.job)){
+                        
+                        const query = {
+                            $text: { $search: text }
+                        };
+
+                        db.collection("drugs").find(query,{projection:{_id:1,name:1,strength:1,dosage:1,price:1,type:1}}).forEach(e => {
+                            staticVars.collectionA.push(e);
+                        }).then(e => {
+                            response.send(staticVars.collectionA);
+                        }).catch(e => {
+                            response.send("1100101");
+                        });
+
+                    }else{
+                        response.send('1110013');
+                    }
+                }
+
+            });
+        }
+    });
+    }catch{
+        response.send('1110016');
+    }  
+    
+});
+
+app.get('/find_drugs', async (request, response) => {
+    // every professional schould have clerance for this operation
+    try{
+    const drug_id = request.query["drug_id"];
+
+    const cleranceLevel = ["Pharmacist","Admin"];
+    staticVars={
+        collectionA: []
+    };
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,first_name:1,last_name:1,data:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    response.send("1110012");
+                }else{
+                    if(check_clerance_level(cleranceLevel,result2.job)){
+                        
+                       const query = {
+                            _id : mongoose.Types.ObjectId(drug_id)
+                        };
+
+                            db.collection("drugs").findOne(query,{projection:{_id:1,name:1,strength:1,dosage:1,price:1,type:1}},function (operr,opresult){
+                                if (operr) throw response.send("1110011");
+                                if(opresult == null){
+                                    response.send('100101');
+                                }else{
+                                    response.send("["+JSON.stringify(opresult)+"]");
+                                }
+                            });
+
+                    }else{
+                        response.send('1110013');
+                    }
+                }
+
+            });
+        }
+    });
+    }catch{
+        response.send('1110016');
+    }  
+    
+});
+
+app.post('/add_new_drug', async (request, response) => {
+    try{
+        
+        const name = request.body.name;
+        const typeHSD = request.body.type;
+        const price = request.body.price;
+        const quantity = request.body.quantity;
+        const batch_price = request.body.batch_price;
+        const brand = request.body.brand;
+        const drug_shortage_point = request.body.drug_shortage_point;
+        const strength = request.body.strength;
+        const expDate = request.body.expDate;
+        const category = request.body.category;
+
+    const cleranceLevel = ["Pharmacist","Admin"];
+  
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,data:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    response.send("1110012");
+                }else{
+                    if(check_clerance_level(cleranceLevel,result2.job)){
+
+                        var em_prof_row = {
+                            name : name,
+                            typeHSD : typeHSD,
+                            price : price,
+                            quantity : quantity,
+                            batch_price : batch_price,
+                            brand : brand,
+                            drug_shortage_point : drug_shortage_point,
+                            strength : strength,
+                            expDate : expDate,
+                            category : category,
+                            who__registerd : result2.data
+                            }
+                            
+                        db.collection("drugs").insertOne(em_prof_row, function(err, res) {
+                            if (err) throw err;
+                       
+                            var batch_doc = {
+                                name : request.body.name,
+                                typeHSD : request.body.type,
+                                price : request.body.price,
+                                quantity : request.body.quantity,
+                                batch_price : request.body.batch_price,
+                                brand : request.body.brand,
+                                drug_shortage_point : request.body.drug_shortage_point,
+                                strength : request.body.strength,
+                                expDate : request.body.expDate,
+                                category : request.body.category,
+                                DrugID: res._id,
+                                batch_number:1,
+                                expired_flag:0
+                            }
+
+                            db.collection("drugs_batch").insertOne(batch_doc, function(err, res) {
+                                if (err) throw err;
+                                response.send("11111");
+                            });
+
+                        });
+
+                    }else{
+                        response.send('1110013');
+                    }
+                }
+
+            });
+        }
+    });
+    
+}catch{
+        response.send('1110016');
+    }  
+    
+});
+
+app.get('/get_drug', async (request, response) => {
+    // every professional schould have clerance for this operation
+    try{
+
+    const category = request.query['category']
+    var price_sum = 0;
+    var tot_no_of_drugs = 0;
+    var tot_quantity = 0;
+
+    const cleranceLevel = ["Pharmacist","Admin"];
+    staticVars={
+        collectionA: []
+    };
+    var usr_remote_ip = getRealIP(request.connection.remoteAddress);
+    if(usr_remote_ip == '1'){
+        usr_remote_ip = "127.0.0.1";
+    }
+    // check if node is permitted
+    const queryPN = {nodeIP:usr_remote_ip};
+    node = db.collection("permitted_nodes").findOne(queryPN,{projection:{nodeIP:1}},function (err,result){
+        if (err) throw response.send("1110011");
+        if(result == null){
+            response.send("1110011");
+        }else{
+            //check session loged in
+            const querySL = {id:usr_remote_ip};
+            loged_in_session = db.collection("session_log").findOne(querySL,{projection:{job:1,first_name:1,last_name:1,data:1}}, function(err2,result2){
+                if (err2) throw response.send("1110012");
+                if(result2 == null){
+                    response.send("1110012");
+                }else{
+                    if(check_clerance_level(cleranceLevel,result2.job)){
+                        
+                        const query = {
+                            category: category
+                        };
+
+                        db.collection("drugs").find(query,{projection:{_id:1,name:1,strength:1,quantity:1,dosage:1,expDate:1,batch_price:1,price:1}}).forEach(e => {
+                            price_sum = price_sum + (parseFloat(e.price)*parseFloat(e.quantity));
+                            tot_no_of_drugs += 1
+                            tot_quantity += parseFloat(e.quantity);
+                            
+                            staticVars.collectionA.push(e);
+                        }).then(e => {
+                            final_output = '{"ac_result":'+JSON.stringify(staticVars.collectionA)+',"totals":[{"price_sum":"'+price_sum+'","tot_no_of_drugs":"'+tot_no_of_drugs+'","tot_quantity":"'+tot_quantity+'"}]}';
+                            response.send(final_output);
+                        }).catch(e => {
+                            response.send("1100101");
+                        });
+
+                    }else{
+                        response.send('1110013');
+                    }
+                }
+
+            });
+        }
+    });
+    }catch{
+        response.send('1110016');
+    }  
+    
+});
+
 
 });
+
+function insert_profe_session(data,ip,job,first_name,last_name){
+    const db = global_static_var.db;
+    const expirydate = new Date();
+    expirydate.setHours( expirydate.getHours() + 12 );
+    const em_prof_row = {
+    data:data,
+    expireAt:expirydate,
+    type:"ID",
+    id:ip,
+    job:job,
+    first_name:first_name,
+    last_name:last_name
+}
+    db.collection("session_log").insertOne(em_prof_row,function(err4,result4){
+        if (err4) throw  console.log("Erro adding session");
+    });
+}
+
+function update_profe_session(ip){
+    const db = global_static_var.db;
+    const expirydate = new Date();
+    expirydate.setHours( expirydate.getHours() + 12 );
+    const upQuery = {id: ip}
+    var newUPvalue = {$set:{expireAt:expirydate}}
+
+db.collection("session_log").updateOne(upQuery,newUPvalue,function(err4,result4){
+    if (err4) throw  console.log("Erro Updating session");
+    });
+}
 
 function add_to_full_rec_index(DocID,usrID,DocCategory,date){
     const db = global_static_var.db;
@@ -4095,14 +4706,14 @@ function getCurrentDate(){
     return dateString;
 }
 
-function write_to_patient_sugestions(namebsed_data,idbased_data){
-let raw_data = fs.readFileSync('../../general_server_files/patient_sugestions.json');
-let prv_suggestions = JSON.parse(raw_data);
-prv_suggestions.name_based.push(namebsed_data);
-prv_suggestions.id_based.push(idbased_data);
-let newdata = JSON.stringify(prv_suggestions);
-fs.writeFileSync('../../general_server_files/patient_sugestions.json',newdata)
-}
+// function write_to_patient_sugestions(namebsed_data,idbased_data){
+// let raw_data = fs.readFileSync('../../general_server_files/patient_sugestions.json');
+// let prv_suggestions = JSON.parse(raw_data);
+// prv_suggestions.name_based.push(namebsed_data);
+// prv_suggestions.id_based.push(idbased_data);
+// let newdata = JSON.stringify(prv_suggestions);
+// fs.writeFileSync('../../general_server_files/patient_sugestions.json',newdata)
+// }
 
 function check_clerance_level(cleranceLevelArray,level){
     const result = {

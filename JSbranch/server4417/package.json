@@ -1,0 +1,11 @@
+{
+  "name": "vios_static_files_serve",
+  "version": "1.0.0",
+  "description": "A static file server for vios EHR",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Lambert Nnadi",
+  "license": "ISC"
+}
